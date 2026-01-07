@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { ShoppingCart, X, Copy, ExternalLink, Trash2, CheckCircle2, Clock, Minus, Plus, MessageCircle } from 'lucide-react';
+import { ShoppingCart, X, Copy, ExternalLink, Trash2, CheckCircle2, Clock, Minus, Plus, MessageCircle, AlertCircle } from 'lucide-react';
 
 // 1. Definisikan Tipe Data Item
 interface Item {
@@ -28,9 +28,12 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
-  const [afkHours, setAfkHours] = useState(1);
+  
+  // STATE KHUSUS JOKI AFK
+  const [afkHours, setAfkHours] = useState(1); // Max 5
+  const [extraHours, setExtraHours] = useState(0); // Jam tambahan (Unlimited)
 
-  // 2. Filter & Map Data
+  // Filter Data
   const oreItems = gamepasses
     .filter((i: any) => !i.name.startsWith('GP'))
     .map((i: any) => ({ ...i, type: 'ore' })); 
@@ -49,31 +52,27 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
     return "Rp " + num.toLocaleString('id-ID');
   };
 
-  // --- LOGIC HITUNG HARGA AFK (UPDATE LOGIKA BARU) ---
-  const calculateAfkPrice = (hours: number) => {
-    // 1 Jam = 25k
-    if (hours === 1) return 25000;
+  // --- LOGIC HITUNG HARGA AFK (UPDATE LOGIKA SPLIT) ---
+  const calculateAfkPrice = (base: number, extra: number) => {
+    let price = 0;
     
-    // 2-4 Jam (Interpolasi biar harganya naik bertahap menuju 75k)
-    if (hours === 2) return 50000; 
-    if (hours === 3) return 55000; // Masih keep harga 3 jam
-    if (hours === 4) return 65000; 
+    // 1. Hitung Paket Utama (Max 5 Jam)
+    if (base === 1) price = 25000;
+    else if (base === 2) price = 50000;
+    else if (base === 3) price = 55000;
+    else if (base === 4) price = 65000;
+    else if (base === 5) price = 75000;
 
-    // Paket 5 Jam = 75k (Base Paket)
-    if (hours === 5) return 75000;
-    
-    // Di atas 5 jam: Harga Paket (75k) + (Jam Tambahan * 15k)
-    // Contoh 6 jam: 75k + 15k = 90k
-    // Contoh 10 jam: 75k + (5 * 15k) = 150k
-    if (hours > 5) {
-      const extraHours = hours - 5;
-      return 75000 + (extraHours * 15000);
+    // 2. Hitung Jam Tambahan (15k/jam)
+    if (extra > 0) {
+        price += (extra * 15000);
     }
     
-    return 0;
+    return price;
   };
 
-  const currentAfkPrice = calculateAfkPrice(afkHours);
+  const currentAfkPrice = calculateAfkPrice(afkHours, extraHours);
+  const totalAfkDuration = afkHours + extraHours;
 
   // --- CART LOGIC ---
 
@@ -109,14 +108,32 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
   };
 
   const addAfkToCart = () => {
+    const isPackageMaxed = afkHours === 5 && extraHours > 0;
+    const itemName = isPackageMaxed 
+        ? `Joki AFK (Paket 5 Jam + ${extraHours} Jam Ekstra)` 
+        : `Joki AFK (${afkHours} Jam)`;
+
+    // ID unik kombinasi jam utama + ekstra
+    const uniqueId = 9000 + (afkHours * 100) + extraHours;
+
     const afkItemObj: Item = {
-      id: 9000 + afkHours, // ID unik berdasarkan jam
+      id: uniqueId,
       type: 'afk',
-      name: `Joki AFK (${afkHours} Jam)`,
+      name: itemName,
       price: formatRupiah(currentAfkPrice),
       category: 'Time Based'
     };
     updateCart(afkItemObj, 1);
+  };
+
+  // Helper Ubah Jam
+  const handleAfkChange = (delta: number) => {
+    const newVal = afkHours + delta;
+    if (newVal >= 1 && newVal <= 5) {
+        setAfkHours(newVal);
+        // Reset extra hours jika turun dari paket 5 jam
+        if (newVal < 5) setExtraHours(0);
+    }
   };
 
   const totalPrice = cart.reduce((acc, c) => acc + (parsePrice(c.item.price) * c.quantity), 0);
@@ -310,32 +327,54 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
           
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="flex flex-col gap-6">
-                {/* JOKI AFK */}
+                
+                {/* JOKI AFK (NEW LOGIC) */}
                 <div className="p-6 bg-gradient-to-br from-slate-800 to-slate-900 border border-emerald-500/30 rounded-2xl shadow-lg relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition"></div>
                     <h3 className="text-xl font-bold text-emerald-400 mb-4 border-b border-slate-700 pb-2 flex items-center gap-2 relative z-10">
                         <Clock size={20} /> Joki AFK
                     </h3>
+                    
                     <div className="space-y-4 relative z-10">
-                        <div className="flex justify-between items-center bg-slate-950/50 p-3 rounded-lg border border-slate-700">
-                            <span className="text-slate-300 text-sm">Durasi (Jam)</span>
+                        {/* 1. Paket Utama (Max 5 Jam) */}
+                        <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-700">
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="text-slate-300 text-sm">Paket Utama</span>
+                                <span className="text-xs text-slate-500">{afkHours === 5 ? 'Max Paket' : '1-5 Jam'}</span>
+                            </div>
                             <div className="flex items-center gap-3">
-                                <button onClick={() => setAfkHours(Math.max(1, afkHours - 1))} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded hover:bg-slate-700 text-white border border-slate-600"><Minus size={14} /></button>
-                                <span className="font-bold text-white w-6 text-center">{afkHours}</span>
-                                <button onClick={() => setAfkHours(Math.min(24, afkHours + 1))} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded hover:bg-slate-700 text-white border border-slate-600"><Plus size={14} /></button>
+                                <button onClick={() => handleAfkChange(-1)} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded hover:bg-slate-700 text-white border border-slate-600"><Minus size={14} /></button>
+                                <span className="font-bold text-white w-20 text-center">{afkHours} Jam</span>
+                                <button onClick={() => handleAfkChange(1)} disabled={afkHours >= 5} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded hover:bg-slate-700 text-white border border-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"><Plus size={14} /></button>
                             </div>
                         </div>
-                        <div className="flex justify-between items-end">
+
+                        {/* 2. Jam Tambahan (Muncul Cuma kalau Pilih 5 Jam) */}
+                        {afkHours === 5 && (
+                            <div className="bg-emerald-900/20 p-3 rounded-lg border border-emerald-500/30 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className="text-emerald-300 text-sm flex items-center gap-1">
+                                        <Plus size={12}/> Jam Ekstra
+                                    </span>
+                                    <span className="text-[10px] bg-emerald-900 text-emerald-400 px-1 rounded border border-emerald-500/50">+15K/jam</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button onClick={() => setExtraHours(Math.max(0, extraHours - 1))} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded hover:bg-slate-700 text-white border border-slate-600"><Minus size={14} /></button>
+                                    <span className="font-bold text-white w-20 text-center">+{extraHours} Jam</span>
+                                    <button onClick={() => setExtraHours(extraHours + 1)} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded hover:bg-slate-700 text-white border border-slate-600"><Plus size={14} /></button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Total Harga */}
+                        <div className="flex justify-between items-end pt-2">
                             <div>
-                                <p className="text-[10px] text-slate-500">Estimasi Harga</p>
+                                <p className="text-[10px] text-slate-500">
+                                    Total Durasi: <span className="text-slate-300 font-bold">{totalAfkDuration} Jam</span>
+                                </p>
                                 <p className="text-2xl font-bold text-emerald-400 font-mono">{formatRupiah(currentAfkPrice)}</p>
                             </div>
                             <button onClick={addAfkToCart} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-emerald-900/20 active:scale-95 transition">+ Keranjang</button>
-                        </div>
-                        {/* UPDATE TEKS DISKON */}
-                        <div className="text-[10px] text-slate-500 bg-slate-950/30 p-2 rounded border border-slate-800/50">
-                            💡 1 Jam 25K • 5 Jam 75K (Hemat!) <br/>
-                            Lebih dari 5 jam cuma nambah 15K/jam.
                         </div>
                     </div>
                 </div>
