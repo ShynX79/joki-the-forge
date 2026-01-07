@@ -1,4 +1,4 @@
-// src/app/login/page.tsx
+// src/app/forge-gate/page.tsx  <-- Pastikan ini path filenya
 "use client";
 
 import { useState } from 'react';
@@ -21,15 +21,14 @@ export default function LoginPage() {
       alert('Login Gagal: ' + error.message);
       setLoading(false);
     } else {
+      // Sukses login -> Masuk ke Admin
       router.push('/admin');
       router.refresh();
     }
   };
 
   return (
-    // Background modern slate gelap
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background subtle glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-900/20 rounded-full blur-[100px] opacity-30 pointer-events-none"></div>
 
       <div className="w-full max-w-md relative z-10">
@@ -37,14 +36,13 @@ export default function LoginPage() {
             <ArrowLeft size={16} /> Kembali ke Toko
         </Link>
         
-        {/* Modern Login Card */}
         <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl p-8 animate-in fade-in slide-in-from-bottom-4">
             <div className="text-center mb-8">
                 <div className="bg-blue-600/20 border border-blue-500/30 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4">
                     <Lock className="text-blue-500" size={24} />
                 </div>
-                <h1 className="text-2xl font-bold text-white">Admin Login</h1>
-                <p className="text-slate-400 text-sm mt-2">Masuk untuk mengelola toko.</p>
+                <h1 className="text-2xl font-bold text-white">Admin Access</h1>
+                <p className="text-slate-400 text-sm mt-2">Area terbatas.</p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5">
@@ -75,7 +73,7 @@ export default function LoginPage() {
                     disabled={loading}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
-                    {loading ? <Loader2 className="animate-spin mr-2" size={20}/> : 'Masuk Dashboard'}
+                    {loading ? <Loader2 className="animate-spin mr-2" size={20}/> : 'Buka Gerbang'}
                 </button>
             </form>
         </div>
