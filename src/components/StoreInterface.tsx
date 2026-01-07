@@ -7,11 +7,16 @@ import { ShoppingCart, X, Copy, ExternalLink, Trash2, CheckCircle2, Clock, Minus
 // 1. Definisikan Tipe Data Item
 interface Item {
   id: number;
-  type: 'service' | 'gamepass' | 'afk';
+  type: 'service' | 'gamepass' | 'afk' | 'ore'; 
   name: string;
   price: string;
   category?: string;
   stock?: string;
+}
+
+interface CartItem {
+  item: Item;
+  quantity: number;
 }
 
 interface StoreInterfaceProps {
@@ -20,20 +25,21 @@ interface StoreInterfaceProps {
 }
 
 export default function StoreInterface({ services, gamepasses }: StoreInterfaceProps) {
-  const [cart, setCart] = useState<Item[]>([]);
-  
-  // State Modal Keranjang
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // State Modal SUKSES (Pop-up baru pengganti alert)
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
-  
-  // State AFK
   const [afkHours, setAfkHours] = useState(1);
 
-  // Filter Data
-  const oreItems = gamepasses.filter((i: any) => !i.name.startsWith('GP'));
-  const gpItems = gamepasses.filter((i: any) => i.name.startsWith('GP'));
+  // 2. Filter & Map Data
+  // Kita paksa ubah type menjadi 'ore' untuk item yang bukan Gamepass (GP)
+  const oreItems = gamepasses
+    .filter((i: any) => !i.name.startsWith('GP'))
+    .map((i: any) => ({ ...i, type: 'ore' })); 
+
+  // Gamepass tetap pakai data asli
+  const gpItems = gamepasses
+    .filter((i: any) => i.name.startsWith('GP'))
+    .map((i: any) => ({ ...i, type: 'gamepass' }));
 
   // --- LOGIC HELPER ---
 
@@ -57,92 +63,144 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
 
   const currentAfkPrice = calculateAfkPrice(afkHours);
 
-  // --- CART MANAGEMENT ---
+  // --- CART LOGIC ---
 
-  const toggleItem = (item: Item) => {
-    const exists = cart.find((c) => c.id === item.id && c.type === item.type);
-    if (exists) {
-      setCart(cart.filter((c) => !(c.id === item.id && c.type === item.type))); 
-    } else {
-      setCart([...cart, item]);
-    }
+  const isMultiQtyItem = (item: Item) => {
+    return item.type === 'ore' || item.name.toLowerCase().includes('raid') || item.name.toLowerCase().includes('boss');
+  };
+
+  const getItemQty = (item: Item) => {
+    const found = cart.find(c => c.item.id === item.id && c.item.type === item.type);
+    return found ? found.quantity : 0;
+  };
+
+  const updateCart = (item: Item, delta: number) => {
+    setCart(prevCart => {
+      const existingIndex = prevCart.findIndex(c => c.item.id === item.id && c.item.type === item.type);
+      
+      if (existingIndex > -1) {
+        const newCart = [...prevCart];
+        const newQty = newCart[existingIndex].quantity + delta;
+
+        if (newQty <= 0) {
+          newCart.splice(existingIndex, 1); 
+        } else {
+          if (!isMultiQtyItem(item) && newQty > 1) return prevCart; 
+          newCart[existingIndex].quantity = newQty;
+        }
+        return newCart;
+      } else if (delta > 0) {
+        return [...prevCart, { item, quantity: 1 }];
+      }
+      return prevCart;
+    });
   };
 
   const addAfkToCart = () => {
-    const afkItem: Item = {
+    const afkItemObj: Item = {
       id: 9000 + afkHours,
       type: 'afk',
       name: `Joki AFK (${afkHours} Jam)`,
       price: formatRupiah(currentAfkPrice),
       category: 'Time Based'
     };
-    if (!cart.find(c => c.id === afkItem.id)) {
-      setCart([...cart, afkItem]);
-    }
+    updateCart(afkItemObj, 1);
   };
 
-  const totalPrice = cart.reduce((acc, item) => acc + parsePrice(item.price), 0);
+  const totalPrice = cart.reduce((acc, c) => acc + (parsePrice(c.item.price) * c.quantity), 0);
+  const totalItems = cart.reduce((acc, c) => acc + c.quantity, 0);
 
-  // --- PERBAIKAN LOGIC CHECKOUT ---
   const handleCheckout = () => {
     let message = "Halo Admin, saya mau order via Website:\n\n";
-    cart.forEach((item, index) => {
-      const cleanName = item.name.replace('GP ', ''); 
+    cart.forEach((c, index) => {
+      const cleanName = c.item.name.replace('GP ', ''); 
       let typeLabel = '';
-      if(item.type === 'service') typeLabel = '[Jasa]';
-      if(item.type === 'gamepass') typeLabel = '[Item]';
-      if(item.type === 'afk') typeLabel = '[⏳ AFK]';
-      message += `${index + 1}. ${typeLabel} ${cleanName} - ${item.price}\n`;
+      if(c.item.type === 'service') typeLabel = '[Jasa]';
+      if(c.item.type === 'gamepass') typeLabel = '[Item]';
+      if(c.item.type === 'afk') typeLabel = '[⏳ AFK]';
+      if(c.item.type === 'ore') typeLabel = '[📦 Material]';
+      
+      const totalItemPrice = parsePrice(c.item.price) * c.quantity;
+      const qtyLabel = c.quantity > 1 ? `*${c.quantity}x* ` : '';
+
+      message += `${index + 1}. ${typeLabel} ${qtyLabel}${cleanName} - ${formatRupiah(totalItemPrice)}\n`;
     });
     message += `\n💰 Total: *${formatRupiah(totalPrice)}*`;
     message += `\n\nMohon diproses ya min!`;
 
     navigator.clipboard.writeText(message).then(() => {
-      // 1. Tutup keranjang
       setIsModalOpen(false);
-      // 2. Buka Pop-up Instruksi (Bukan Alert Browser lagi)
       setIsSuccessOpen(true);
     }).catch(() => {
         alert("Gagal menyalin text.");
     });
   };
 
-  // Fungsi Buka TikTok (Dipanggil dari Pop-up Sukses)
   const openTikTok = () => {
     window.open("https://www.tiktok.com/@imnotok_793", "_blank");
-    setIsSuccessOpen(false); // Tutup pop-up setelah klik
-    setCart([]); // Kosongkan keranjang (Opsional, biar reset)
+    setIsSuccessOpen(false);
+    setCart([]); 
   };
 
-  // --- SUB-COMPONENT CARD ---
+  // --- CARD COMPONENT (FIXED PROP DEFINITION) ---
+  // Pastikan props: { item, colorTheme, type } didefinisikan dengan benar
   const ItemCard = ({ item, colorTheme, type }: { item: Item, colorTheme: string, type: string }) => {
-    const isSelected = cart.some((c) => c.id === item.id && c.type === item.type);
-    let activeClass = isSelected 
+    const qty = getItemQty(item);
+    const isMulti = isMultiQtyItem(item);
+    
+    let activeClass = qty > 0
       ? `border-${colorTheme}-500 bg-${colorTheme}-900/40 ring-1 ring-${colorTheme}-500` 
       : `border-slate-700/50 bg-slate-900/50`;
     
-    // Manual Tailwind mapping
-    if (colorTheme === 'orange' && isSelected) activeClass = "border-orange-500 bg-orange-900/40 ring-1 ring-orange-500";
-    if (colorTheme === 'blue' && isSelected) activeClass = "border-blue-500 bg-blue-900/40 ring-1 ring-blue-500";
-    if (colorTheme === 'purple' && isSelected) activeClass = "border-purple-500 bg-purple-900/40 ring-1 ring-purple-500";
+    if (colorTheme === 'orange' && qty > 0) activeClass = "border-orange-500 bg-orange-900/40 ring-1 ring-orange-500";
+    if (colorTheme === 'blue' && qty > 0) activeClass = "border-blue-500 bg-blue-900/40 ring-1 ring-blue-500";
+    if (colorTheme === 'purple' && qty > 0) activeClass = "border-purple-500 bg-purple-900/40 ring-1 ring-purple-500";
 
     return (
-      <div 
-        onClick={() => toggleItem(item)}
-        className={`cursor-pointer relative flex flex-col justify-between p-3 rounded-xl border transition-all duration-200 hover:scale-[1.02] ${activeClass}`}
-      >
-        <div className={`absolute top-2 right-2 w-5 h-5 rounded-full border flex items-center justify-center ${isSelected ? `bg-${colorTheme}-500 border-${colorTheme}-500` : 'border-slate-600 bg-slate-950'}`}>
-            {isSelected && <CheckCircle2 size={12} className="text-white" />}
+      <div className={`relative flex flex-col justify-between p-3 rounded-xl border transition-all duration-200 ${activeClass}`}>
+        <div className="flex justify-between items-start mb-2" onClick={() => !isMulti && updateCart(item, qty > 0 ? -1 : 1)}>
+            <div className="pr-6 cursor-pointer">
+                <h4 className="font-medium text-white text-sm">{item.name.replace('GP ', '')}</h4>
+                {/* Gunakan prop 'type' untuk conditional rendering */}
+                {type === 'service' && <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{item.category}</span>}
+                {type === 'ore' && <span className={`text-[10px] px-1.5 py-0.5 rounded border ${item.stock === 'Kosong' ? 'border-red-900 text-red-400' : 'border-blue-900 text-blue-400'}`}>{item.stock}</span>}
+            </div>
+            {!isMulti && (
+                <div className={`w-5 h-5 rounded-full border flex items-center justify-center cursor-pointer ${qty > 0 ? `bg-${colorTheme}-500 border-${colorTheme}-500` : 'border-slate-600 bg-slate-950'}`}>
+                    {qty > 0 && <CheckCircle2 size={12} className="text-white" />}
+                </div>
+            )}
         </div>
-        <div className="mb-2 pr-6">
-            <h4 className="font-medium text-white text-sm">{item.name.replace('GP ', '')}</h4>
-            {type === 'service' && <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{item.category}</span>}
-            {type === 'ore' && <span className={`text-[10px] px-1.5 py-0.5 rounded border ${item.stock === 'Kosong' ? 'border-red-900 text-red-400' : 'border-blue-900 text-blue-400'}`}>{item.stock}</span>}
-        </div>
-        <div className="mt-auto">
-          <span className={`font-bold text-sm ${type === 'gp' ? 'text-yellow-400' : 'text-emerald-400'}`}>
+
+        <div className="mt-auto flex items-end justify-between">
+          <span className={`font-bold text-sm ${type === 'gamepass' ? 'text-yellow-400' : 'text-emerald-400'}`}>
             {item.price}
           </span>
+
+          {isMulti ? (
+             <div className="flex items-center gap-2 bg-slate-950 rounded-lg p-1 border border-slate-700">
+                <button 
+                    onClick={(e) => { e.stopPropagation(); updateCart(item, -1); }}
+                    className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-800 transition ${qty === 0 ? 'text-slate-600' : 'text-white'}`}
+                >
+                    <Minus size={14} />
+                </button>
+                <span className={`text-xs font-bold w-4 text-center ${qty > 0 ? 'text-white' : 'text-slate-500'}`}>{qty}</span>
+                <button 
+                    onClick={(e) => { e.stopPropagation(); updateCart(item, 1); }}
+                    className="w-6 h-6 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-white transition"
+                >
+                    <Plus size={14} />
+                </button>
+             </div>
+          ) : (
+             <button 
+                onClick={() => updateCart(item, qty > 0 ? -1 : 1)}
+                className={`text-xs px-3 py-1 rounded font-bold transition ${qty > 0 ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+             >
+                {qty > 0 ? 'Batal' : 'Ambil'}
+             </button>
+          )}
         </div>
       </div>
     );
@@ -150,7 +208,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
 
   return (
     <>
-      {/* 1. FLOATING CART BUTTON */}
+      {/* FLOATING CART BUTTON */}
       {cart.length > 0 && (
         <div className="fixed bottom-6 left-0 right-0 z-50 px-4 flex justify-center animate-bounce-in">
             <button 
@@ -158,7 +216,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
                 className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-full shadow-2xl shadow-orange-900/50 flex items-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95"
             >
                 <ShoppingCart className="fill-white" size={20} />
-                <span>{cart.length} Item</span>
+                <span>{totalItems} Item</span>
                 <span className="bg-orange-800/50 px-2 py-0.5 rounded text-sm font-mono border border-orange-500/30">
                     {formatRupiah(totalPrice)}
                 </span>
@@ -166,28 +224,34 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
         </div>
       )}
 
-      {/* 2. MODAL KERANJANG BELANJA */}
+      {/* MODAL KERANJANG */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             <div className="bg-slate-900 w-full max-w-md rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
                 <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800">
                     <h3 className="font-bold text-white text-lg flex items-center gap-2">
-                        <ShoppingCart size={20} className="text-orange-500" /> Ringkasan Pesanan
+                        <ShoppingCart size={20} className="text-orange-500" /> Keranjang Belanja
                     </h3>
                     <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1 rounded-full transition">
                         <X size={24} />
                     </button>
                 </div>
                 <div className="p-4 overflow-y-auto flex-1 space-y-3">
-                    {cart.map((item) => (
-                        <div key={`${item.type}-${item.id}`} className="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-800">
+                    {cart.map((c) => (
+                        <div key={`${c.item.type}-${c.item.id}`} className="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-800">
                             <div>
-                                <p className="text-white text-sm font-medium">{item.name.replace('GP ', '')}</p>
-                                <p className="text-emerald-400 text-xs font-mono">{item.price}</p>
+                                <p className="text-white text-sm font-medium">
+                                    {c.quantity > 1 && <span className="text-orange-400 font-bold mr-1">{c.quantity}x</span>}
+                                    {c.item.name.replace('GP ', '')}
+                                </p>
+                                <p className="text-emerald-400 text-xs font-mono">
+                                    @{c.item.price} {(c.quantity > 1) && `(Total: ${formatRupiah(parsePrice(c.item.price) * c.quantity)})`}
+                                </p>
                             </div>
-                            <button onClick={() => toggleItem(item)} className="text-red-500 hover:bg-red-500/10 p-2 rounded transition">
-                                <Trash2 size={18} />
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => updateCart(c.item, -1)} className="w-8 h-8 flex items-center justify-center rounded bg-slate-800 text-white hover:bg-red-500/20 hover:text-red-400 transition"><Minus size={14}/></button>
+                                <button onClick={() => updateCart(c.item, 1)} className="w-8 h-8 flex items-center justify-center rounded bg-slate-800 text-white hover:bg-green-500/20 hover:text-green-400 transition"><Plus size={14}/></button>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -205,37 +269,23 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
         </div>
       )}
 
-      {/* 3. MODAL SUKSES / INSTRUKSI (BARU!) */}
+      {/* MODAL SUKSES */}
       {isSuccessOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in zoom-in duration-300">
              <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-green-500/30 shadow-2xl overflow-hidden text-center p-6 relative">
-                {/* Hiasan Background */}
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-emerald-400"></div>
-                
                 <div className="w-16 h-16 bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/50">
                     <CheckCircle2 size={32} className="text-green-400" />
                 </div>
-
                 <h3 className="text-2xl font-bold text-white mb-2">Orderan Disalin!</h3>
                 <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-                    Teks orderan sudah tersalin otomatis. <br/>
                     Silakan klik tombol di bawah untuk membuka TikTok, lalu <b>PASTE (Tempel)</b> di DM Admin.
                 </p>
-
-                <button 
-                    onClick={openTikTok}
-                    className="w-full bg-white text-black hover:bg-gray-200 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 mb-3"
-                >
+                <button onClick={openTikTok} className="w-full bg-white text-black hover:bg-gray-200 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 mb-3">
                     <MessageCircle size={20} className="text-black" />
                     <span>Buka DM TikTok Admin</span>
                 </button>
-
-                <button 
-                    onClick={() => setIsSuccessOpen(false)}
-                    className="text-slate-500 text-sm hover:text-white transition"
-                >
-                    Tutup
-                </button>
+                <button onClick={() => setIsSuccessOpen(false)} className="text-slate-500 text-sm hover:text-white transition">Tutup</button>
              </div>
         </div>
       )}
@@ -250,7 +300,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
           
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="flex flex-col gap-6">
-                {/* MENU JOKI AFK */}
+                {/* JOKI AFK */}
                 <div className="p-6 bg-gradient-to-br from-slate-800 to-slate-900 border border-emerald-500/30 rounded-2xl shadow-lg relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition"></div>
                     <h3 className="text-xl font-bold text-emerald-400 mb-4 border-b border-slate-700 pb-2 flex items-center gap-2 relative z-10">
@@ -301,7 +351,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
                <h3 className="text-xl font-bold text-purple-400 mb-4 border-b border-slate-700 pb-2 relative z-10">Gamepass (Via Gift)</h3>
                <div className="grid gap-3 content-start relative z-10">
                 {gpItems.map((item: any) => (
-                   <ItemCard key={`g-${item.id}`} item={item} colorTheme="purple" type="gp" />
+                   <ItemCard key={`g-${item.id}`} item={item} colorTheme="purple" type="gamepass" />
                 ))}
                </div>
             </div>
