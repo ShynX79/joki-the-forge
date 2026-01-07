@@ -2,9 +2,8 @@
 "use client";
 
 import { useState } from 'react';
-import { ShoppingCart, X, Copy, ExternalLink, Trash2, CheckCircle2, Clock, Minus, Plus, MessageCircle, Flame } from 'lucide-react';
+import { ShoppingCart, X, Copy, Minus, Plus, MessageCircle, Flame, Hammer, Gem, Crown, Clock, CheckCircle2, PackageCheck } from 'lucide-react';
 
-// 1. Definisikan Tipe Data Item
 interface Item {
   id: number;
   type: 'service' | 'gamepass' | 'afk' | 'ore'; 
@@ -28,12 +27,13 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
-  
-  // STATE KHUSUS JOKI AFK
-  const [afkHours, setAfkHours] = useState(1); // Max 5
-  const [extraHours, setExtraHours] = useState(0); // Jam tambahan (Unlimited)
+  const [afkHours, setAfkHours] = useState(1); 
+  const [extraHours, setExtraHours] = useState(0);
 
-  // Filter Data
+  // --- FILTER DATA ---
+  const displayedServices = services.filter((s: any) => s.category !== 'System');
+  const afkConfig = services.filter((s: any) => s.category === 'System');
+
   const oreItems = gamepasses
     .filter((i: any) => !i.name.startsWith('GP'))
     .map((i: any) => ({ ...i, type: 'ore' })); 
@@ -43,43 +43,43 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
     .map((i: any) => ({ ...i, type: 'gamepass' }));
 
   // --- LOGIC HELPER ---
+  const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, '')) || 0;
+  const formatRupiah = (num: number) => "Rp " + num.toLocaleString('id-ID');
 
-  const parsePrice = (priceStr: string) => {
-    return parseInt(priceStr.replace(/[^0-9]/g, '')) || 0;
+  const getAfkRate = (key: string, defaultPrice: number) => {
+    const found = afkConfig.find((s: any) => s.name === key);
+    return found ? parsePrice(found.price) : defaultPrice;
   };
 
-  const formatRupiah = (num: number) => {
-    return "Rp " + num.toLocaleString('id-ID');
-  };
-
-  // --- LOGIC HITUNG HARGA AFK (UPDATE HARGA BARU) ---
   const calculateAfkPrice = (base: number, extra: number) => {
     let price = 0;
-    
-    // 1. Hitung Paket Utama (Max 5 Jam)
-    if (base === 1) price = 20000;       // BARU: 20k
-    else if (base === 2) price = 40000;  // 2 x 20k
-    else if (base === 3) price = 55000;  // Paket 3 Jam
-    else if (base === 4) price = 65000;  // Interpolasi
-    else if (base === 5) price = 75000;  // Paket 5 Jam
+    if (base === 1) price = getAfkRate('AFK 1 Jam', 20000);
+    else if (base === 2) price = getAfkRate('AFK 2 Jam', 40000);
+    else if (base === 3) price = getAfkRate('AFK 3 Jam', 55000);
+    else if (base === 4) price = getAfkRate('AFK 4 Jam', 65000);
+    else if (base === 5) price = getAfkRate('AFK 5 Jam', 75000);
 
-    // 2. Hitung Jam Tambahan (Tetap 15k/jam biar fair)
     if (extra > 0) {
-        price += (extra * 15000);
+        const extraRate = getAfkRate('AFK Extra Per Jam', 15000);
+        price += (extra * extraRate);
     }
-    
     return price;
   };
 
-  const currentAfkPrice = calculateAfkPrice(afkHours, extraHours);
-  const totalAfkDuration = afkHours + extraHours;
-
-  // --- CART LOGIC ---
-
-  const isMultiQtyItem = (item: Item) => {
-    return item.type === 'ore' || item.name.toLowerCase().includes('raid') || item.name.toLowerCase().includes('boss');
+  const calculateSavings = (hours: number) => {
+    const price1h = getAfkRate('AFK 1 Jam', 20000); 
+    const currentPrice = calculateAfkPrice(hours, 0); 
+    const normalPrice = price1h * hours; 
+    const savings = normalPrice - currentPrice;
+    return savings > 0 ? savings : 0;
   };
 
+  const currentAfkPrice = calculateAfkPrice(afkHours, extraHours);
+  const currentSavings = calculateSavings(afkHours);
+
+  // --- CART LOGIC ---
+  const isMultiQtyItem = (item: Item) => item.type === 'ore' || item.name.toLowerCase().includes('raid') || item.name.toLowerCase().includes('boss');
+  
   const getItemQty = (item: Item) => {
     const found = cart.find(c => c.item.id === item.id && c.item.type === item.type);
     return found ? found.quantity : 0;
@@ -88,15 +88,12 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
   const updateCart = (item: Item, delta: number) => {
     setCart(prevCart => {
       const existingIndex = prevCart.findIndex(c => c.item.id === item.id && c.item.type === item.type);
-      
       if (existingIndex > -1) {
         const newCart = [...prevCart];
         const newQty = newCart[existingIndex].quantity + delta;
-
-        if (newQty <= 0) {
-          newCart.splice(existingIndex, 1); 
-        } else {
-          if (!isMultiQtyItem(item) && newQty > 1) return prevCart; 
+        if (newQty <= 0) newCart.splice(existingIndex, 1);
+        else {
+          if (!isMultiQtyItem(item) && newQty > 1) return prevCart;
           newCart[existingIndex].quantity = newQty;
         }
         return newCart;
@@ -137,14 +134,14 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
   const totalItems = cart.reduce((acc, c) => acc + c.quantity, 0);
 
   const handleCheckout = () => {
-    let message = "Halo Admin, saya mau order via Website:\n\n";
+    let message = "🎮 *ORDERAN BARU* 🎮\n\nHalo Admin, saya mau order:\n\n";
     cart.forEach((c, index) => {
       const cleanName = c.item.name.replace('GP ', ''); 
       let typeLabel = '';
-      if(c.item.type === 'service') typeLabel = '[Jasa]';
-      if(c.item.type === 'gamepass') typeLabel = '[Item]';
+      if(c.item.type === 'service') typeLabel = '[🛠️ Jasa]';
+      if(c.item.type === 'gamepass') typeLabel = '[👑 Item]';
       if(c.item.type === 'afk') typeLabel = '[⏳ AFK]';
-      if(c.item.type === 'ore') typeLabel = '[📦 Material]';
+      if(c.item.type === 'ore') typeLabel = '[💎 Material]';
       
       const totalItemPrice = parsePrice(c.item.price) * c.quantity;
       const qtyLabel = c.quantity > 1 ? `*${c.quantity}x* ` : '';
@@ -152,7 +149,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
       message += `${index + 1}. ${typeLabel} ${qtyLabel}${cleanName} - ${formatRupiah(totalItemPrice)}\n`;
     });
     message += `\n💰 Total: *${formatRupiah(totalPrice)}*`;
-    message += `\n\nMohon diproses ya min!`;
+    message += `\n\nMohon diproses min!`;
 
     navigator.clipboard.writeText(message).then(() => {
       setIsModalOpen(false);
@@ -168,60 +165,72 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
     setCart([]); 
   };
 
-  // --- CARD COMPONENT ---
   const ItemCard = ({ item, colorTheme, type }: { item: Item, colorTheme: string, type: string }) => {
     const qty = getItemQty(item);
     const isMulti = isMultiQtyItem(item);
     
-    let activeClass = qty > 0
-      ? `border-${colorTheme}-500 bg-${colorTheme}-900/40 ring-1 ring-${colorTheme}-500` 
-      : `border-slate-700/50 bg-slate-900/50`;
-    
-    if (colorTheme === 'orange' && qty > 0) activeClass = "border-orange-500 bg-orange-900/40 ring-1 ring-orange-500";
-    if (colorTheme === 'blue' && qty > 0) activeClass = "border-blue-500 bg-blue-900/40 ring-1 ring-blue-500";
-    if (colorTheme === 'purple' && qty > 0) activeClass = "border-purple-500 bg-purple-900/40 ring-1 ring-purple-500";
+    let cardClass = "bg-slate-900 border border-slate-800 hover:border-slate-600"; 
+    let titleClass = "text-slate-200";
+    let priceClass = "text-slate-300";
+    let categoryClass = "text-slate-500 bg-slate-800";
+    let btnClass = "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white";
+
+    if (colorTheme === 'orange') { 
+        titleClass = "text-orange-100 group-hover:text-orange-400";
+        priceClass = "text-orange-400";
+        categoryClass = "text-orange-300 bg-orange-900/30 border border-orange-500/20";
+        if (qty > 0) {
+            cardClass = "bg-orange-950/20 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.1)]";
+            btnClass = "bg-orange-600 text-white hover:bg-orange-500 shadow-lg shadow-orange-900/20";
+        }
+    }
+    if (colorTheme === 'blue') { 
+        titleClass = "text-blue-100 group-hover:text-cyan-300";
+        priceClass = "text-cyan-400";
+        categoryClass = "text-blue-300 bg-blue-900/30 border border-blue-500/20";
+        if (qty > 0) {
+            cardClass = "bg-blue-950/20 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]";
+            btnClass = "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20";
+        }
+    }
+    if (colorTheme === 'purple') { 
+        titleClass = "text-purple-100 group-hover:text-fuchsia-300";
+        priceClass = "text-yellow-400";
+        categoryClass = "text-purple-300 bg-purple-900/30 border border-purple-500/20";
+        if (qty > 0) {
+            cardClass = "bg-purple-950/20 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.1)]";
+            btnClass = "bg-purple-600 text-white hover:bg-purple-500 shadow-lg shadow-purple-900/20";
+        }
+    }
 
     return (
-      <div className={`relative flex flex-col justify-between p-3 rounded-xl border transition-all duration-200 ${activeClass}`}>
-        <div className="flex justify-between items-start mb-2" onClick={() => !isMulti && updateCart(item, qty > 0 ? -1 : 1)}>
-            <div className="pr-6 cursor-pointer">
-                <h4 className="font-medium text-white text-sm">{item.name.replace('GP ', '')}</h4>
-                {type === 'service' && <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{item.category}</span>}
-                {type === 'ore' && <span className={`text-[10px] px-1.5 py-0.5 rounded border ${item.stock === 'Kosong' ? 'border-red-900 text-red-400' : 'border-blue-900 text-blue-400'}`}>{item.stock}</span>}
+      <div className={`relative flex flex-col justify-between p-4 rounded-xl transition-all duration-300 group ${cardClass}`}>
+        <div className="flex justify-between items-start mb-3 cursor-pointer" onClick={() => !isMulti && updateCart(item, qty > 0 ? -1 : 1)}>
+            <div className="pr-2">
+                <h4 className={`font-bold text-sm tracking-tight transition-colors ${titleClass}`}>
+                    {item.name.replace('GP ', '')}
+                </h4>
+                <div className="flex gap-2 mt-1.5">
+                    {type === 'service' && <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold tracking-wider ${categoryClass}`}>{item.category}</span>}
+                    {type === 'ore' && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${item.stock === 'Kosong' ? 'bg-red-950/50 text-red-400 border border-red-900' : 'bg-emerald-950/40 text-emerald-400 border border-emerald-900'}`}>{item.stock || 'Ready'}</span>}
+                </div>
             </div>
             {!isMulti && (
-                <div className={`w-5 h-5 rounded-full border flex items-center justify-center cursor-pointer ${qty > 0 ? `bg-${colorTheme}-500 border-${colorTheme}-500` : 'border-slate-600 bg-slate-950'}`}>
+                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${qty > 0 ? `bg-${colorTheme}-500 border-${colorTheme}-500` : 'border-slate-700 bg-slate-800'}`}>
                     {qty > 0 && <CheckCircle2 size={12} className="text-white" />}
                 </div>
             )}
         </div>
-
-        <div className="mt-auto flex items-end justify-between">
-          <span className={`font-bold text-sm ${type === 'gamepass' ? 'text-yellow-400' : 'text-emerald-400'}`}>
-            {item.price}
-          </span>
-
+        <div className="mt-auto flex items-center justify-between">
+          <span className={`font-mono font-bold text-sm ${priceClass}`}>{item.price}</span>
           {isMulti ? (
-             <div className="flex items-center gap-2 bg-slate-950 rounded-lg p-1 border border-slate-700">
-                <button 
-                    onClick={(e) => { e.stopPropagation(); updateCart(item, -1); }}
-                    className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-800 transition ${qty === 0 ? 'text-slate-600' : 'text-white'}`}
-                >
-                    <Minus size={14} />
-                </button>
-                <span className={`text-xs font-bold w-4 text-center ${qty > 0 ? 'text-white' : 'text-slate-500'}`}>{qty}</span>
-                <button 
-                    onClick={(e) => { e.stopPropagation(); updateCart(item, 1); }}
-                    className="w-6 h-6 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-white transition"
-                >
-                    <Plus size={14} />
-                </button>
+             <div className={`flex items-center gap-1 rounded-lg p-1 border transition-colors ${qty > 0 ? 'bg-slate-900 border-slate-700' : 'bg-slate-900 border-slate-800'}`}>
+                <button onClick={(e) => { e.stopPropagation(); updateCart(item, -1); }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition"><Minus size={14} /></button>
+                <span className={`text-xs font-mono font-bold w-6 text-center ${qty > 0 ? 'text-white' : 'text-slate-600'}`}>{qty}</span>
+                <button onClick={(e) => { e.stopPropagation(); updateCart(item, 1); }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 transition"><Plus size={14} /></button>
              </div>
           ) : (
-             <button 
-                onClick={() => updateCart(item, qty > 0 ? -1 : 1)}
-                className={`text-xs px-3 py-1 rounded font-bold transition ${qty > 0 ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
-             >
+             <button onClick={() => updateCart(item, qty > 0 ? -1 : 1)} className={`text-xs px-4 py-2 rounded-lg font-bold transition-all shadow-md ${btnClass}`}>
                 {qty > 0 ? 'Batal' : 'Ambil'}
              </button>
           )}
@@ -232,188 +241,168 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
 
   return (
     <>
-      {/* FLOATING CART BUTTON */}
+      {/* 1. FLOATING CART */}
       {cart.length > 0 && (
-        <div className="fixed bottom-6 left-0 right-0 z-50 px-4 flex justify-center animate-bounce-in">
+        <div className="fixed bottom-8 left-0 right-0 z-50 px-4 flex justify-center animate-pop-in">
             <button 
                 onClick={() => setIsModalOpen(true)}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-full shadow-2xl shadow-orange-900/50 flex items-center gap-3 font-bold text-lg transition-transform hover:scale-105 active:scale-95"
+                className="bg-slate-900/95 backdrop-blur-md border border-slate-700 hover:border-blue-500 text-white px-6 py-3 rounded-2xl shadow-2xl shadow-blue-900/30 flex items-center gap-4 transition-all hover:scale-105 active:scale-95 group"
             >
-                <ShoppingCart className="fill-white" size={20} />
-                <span>{totalItems} Item</span>
-                <span className="bg-orange-800/50 px-2 py-0.5 rounded text-sm font-mono border border-orange-500/30">
-                    {formatRupiah(totalPrice)}
-                </span>
+                <div className="relative">
+                    <ShoppingCart className="text-blue-400 group-hover:text-blue-300 transition" size={22} />
+                    <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full text-[10px] flex items-center justify-center font-bold shadow-sm">{cart.reduce((a,c) => a + c.quantity, 0)}</span>
+                </div>
+                <div className="flex flex-col items-start leading-none gap-0.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Pesanan</span>
+                    <span className="text-base font-bold font-mono text-blue-100">{formatRupiah(totalPrice)}</span>
+                </div>
             </button>
         </div>
       )}
 
-      {/* MODAL KERANJANG */}
+      {/* 2. MODAL KERANJANG */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-slate-900 w-full max-w-md rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-slate-900 w-full max-w-md rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] relative ring-1 ring-white/10 animate-pop-in">
+                <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900">
                     <h3 className="font-bold text-white text-lg flex items-center gap-2">
-                        <ShoppingCart size={20} className="text-orange-500" /> Keranjang Belanja
+                        <ShoppingCart size={20} className="text-blue-500" /> Keranjang
                     </h3>
-                    <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1 rounded-full transition">
-                        <X size={24} />
-                    </button>
+                    <button onClick={() => setIsModalOpen(false)} className="bg-slate-800 hover:bg-slate-700 p-1.5 rounded-full text-slate-400 hover:text-white transition"><X size={18} /></button>
                 </div>
-                <div className="p-4 overflow-y-auto flex-1 space-y-3">
+                <div className="p-5 overflow-y-auto flex-1 space-y-3 bg-slate-950/50">
                     {cart.map((c) => (
-                        <div key={`${c.item.type}-${c.item.id}`} className="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-800">
+                        <div key={`${c.item.type}-${c.item.id}`} className="flex justify-between items-center bg-slate-900 p-4 rounded-xl border border-slate-800">
                             <div>
-                                <p className="text-white text-sm font-medium">
-                                    {c.quantity > 1 && <span className="text-orange-400 font-bold mr-1">{c.quantity}x</span>}
+                                <p className="text-slate-200 text-sm font-bold">
+                                    {c.quantity > 1 && <span className="text-blue-400 font-bold mr-1">{c.quantity}x</span>}
                                     {c.item.name.replace('GP ', '')}
                                 </p>
-                                <p className="text-emerald-400 text-xs font-mono">
-                                    @{c.item.price} {(c.quantity > 1) && `(Total: ${formatRupiah(parsePrice(c.item.price) * c.quantity)})`}
-                                </p>
+                                <p className="text-blue-300/80 text-xs font-mono mt-0.5">@{c.item.price} {(c.quantity > 1) && `(Total: ${formatRupiah(parsePrice(c.item.price) * c.quantity)})`}</p>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <button onClick={() => updateCart(c.item, -1)} className="w-8 h-8 flex items-center justify-center rounded bg-slate-800 text-white hover:bg-red-500/20 hover:text-red-400 transition"><Minus size={14}/></button>
-                                <button onClick={() => updateCart(c.item, 1)} className="w-8 h-8 flex items-center justify-center rounded bg-slate-800 text-white hover:bg-green-500/20 hover:text-green-400 transition"><Plus size={14}/></button>
+                            <div className="flex items-center gap-2 bg-slate-950 rounded-lg border border-slate-800 p-1">
+                                <button onClick={() => updateCart(c.item, -1)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-800 text-slate-400 hover:text-red-400 transition"><Minus size={14}/></button>
+                                <button onClick={() => updateCart(c.item, 1)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition"><Plus size={14}/></button>
                             </div>
                         </div>
                     ))}
                 </div>
-                <div className="p-4 bg-slate-800 border-t border-slate-700 space-y-4">
-                    <div className="flex justify-between items-center text-lg font-bold">
-                        <span className="text-slate-300">Total Bayar:</span>
-                        <span className="text-orange-400 text-xl font-mono">{formatRupiah(totalPrice)}</span>
-                    </div>
-                    <button onClick={handleCheckout} className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95">
-                        <Copy size={18} />
-                        <span>Salin Orderan</span>
-                    </button>
+                <div className="p-5 bg-slate-900 border-t border-slate-800 space-y-4">
+                    <div className="flex justify-between items-center text-lg font-bold"><span className="text-slate-400 text-sm font-medium uppercase">Total Bayar</span><span className="text-blue-400 text-xl font-mono">{formatRupiah(totalPrice)}</span></div>
+                    <button onClick={handleCheckout} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"><Copy size={18} /><span>Salin Orderan</span></button>
                 </div>
             </div>
         </div>
       )}
 
-      {/* MODAL SUKSES */}
+      {/* 3. MODAL SUKSES */}
       {isSuccessOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in zoom-in duration-300">
-             <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-green-500/30 shadow-2xl overflow-hidden text-center p-6 relative">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-emerald-400"></div>
-                <div className="w-16 h-16 bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/50">
-                    <CheckCircle2 size={32} className="text-green-400" />
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+             <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden text-center p-8 relative ring-1 ring-blue-500/20 animate-pop-in">
+                <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6 ring-1 ring-blue-500/30">
+                    <PackageCheck size={32} className="text-blue-500" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2">Orderan Disalin!</h3>
-                <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-                    Silakan klik tombol di bawah untuk membuka TikTok, lalu <b>PASTE (Tempel)</b> di DM Admin.
+                <p className="text-slate-400 text-sm mb-8 leading-relaxed">
+                    Teks orderan sudah ada di clipboard.<br/> 
+                    Silakan <b>Paste (Tempel)</b> di DM Admin TikTok.
                 </p>
-                <button onClick={openTikTok} className="w-full bg-white text-black hover:bg-gray-200 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 mb-3">
-                    <MessageCircle size={20} className="text-black" />
-                    <span>Buka DM TikTok Admin</span>
-                </button>
-                <button onClick={() => setIsSuccessOpen(false)} className="text-slate-500 text-sm hover:text-white transition">Tutup</button>
+                <div className="space-y-3">
+                    <button onClick={openTikTok} className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"><MessageCircle size={20} /><span>Buka TikTok</span></button>
+                    <button onClick={() => setIsSuccessOpen(false)} className="text-slate-500 text-sm hover:text-white transition font-medium">Tutup</button>
+                </div>
              </div>
         </div>
       )}
 
       {/* --- GRID TAMPILAN ITEM --- */}
-      <section id="pricelist" className="py-16 bg-slate-900/50 border-y border-white/5">
-        <div className="px-4 mx-auto max-w-[1400px]">
-          <div className="mx-auto max-w-screen-md text-center mb-12">
-            <h2 className="mb-4 text-3xl tracking-tight font-extrabold text-white">Daftar Layanan</h2>
-            <p className="font-light text-slate-400 sm:text-xl">Klik item untuk menambahkannya ke keranjang.</p>
+      <section id="pricelist" className="py-20 relative">
+        <div className="px-4 mx-auto max-w-[1400px] relative z-10">
+          
+          <div className="mx-auto max-w-screen-md text-center mb-16">
+            <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-white to-blue-400 mb-4">Pilih Layanan</h2>
+            <p className="text-slate-400 text-lg">Sesuaikan kebutuhan leveling dan materialmu.</p>
           </div>
           
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid lg:grid-cols-3 gap-8 items-start">
             <div className="flex flex-col gap-6">
                 
-                {/* JOKI AFK */}
-                <div className="p-6 bg-gradient-to-br from-slate-800 to-slate-900 border border-emerald-500/30 rounded-2xl shadow-lg relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition"></div>
-                    <h3 className="text-xl font-bold text-emerald-400 mb-4 border-b border-slate-700 pb-2 flex items-center gap-2 relative z-10">
-                        <Clock size={20} /> Joki AFK
-                    </h3>
+                {/* JOKI AFK WIDGET */}
+                <div className="p-6 bg-gradient-to-br from-emerald-950 to-slate-900 border border-emerald-800 rounded-2xl shadow-xl relative overflow-hidden">
+                    <div className="flex items-center gap-3 mb-6 border-b border-emerald-900/30 pb-4">
+                        <div className="p-2 bg-emerald-500/10 rounded-lg"><Clock size={20} className="text-emerald-400"/></div>
+                        <h3 className="text-xl font-bold text-emerald-100">Joki AFK</h3>
+                    </div>
                     
-                    <div className="space-y-4 relative z-10">
-                        {/* 1. Paket Utama (Max 5 Jam) */}
-                        <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-700">
-                            <div className="flex justify-between items-center mb-1">
-                                <span className="text-slate-300 text-sm">Paket Utama</span>
-                                <span className="text-xs text-slate-500">{afkHours === 5 ? 'Max Paket' : '1-5 Jam'}</span>
+                    <div className="space-y-5 relative z-10">
+                        <div className="bg-black/20 p-4 rounded-xl border border-emerald-500/10">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-emerald-200/60 text-xs font-bold uppercase tracking-wider">Durasi Utama</span>
+                                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold">{afkHours === 5 ? 'MAX' : '1-5 JAM'}</span>
                             </div>
                             <div className="flex items-center gap-3">
-                                <button onClick={() => handleAfkChange(-1)} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded hover:bg-slate-700 text-white border border-slate-600"><Minus size={14} /></button>
-                                <span className="font-bold text-white w-20 text-center">{afkHours} Jam</span>
-                                <button onClick={() => handleAfkChange(1)} disabled={afkHours >= 5} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded hover:bg-slate-700 text-white border border-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"><Plus size={14} /></button>
+                                <button onClick={() => handleAfkChange(-1)} className="w-10 h-10 flex items-center justify-center bg-emerald-950 rounded-lg hover:bg-emerald-900 text-emerald-400 border border-emerald-900 transition"><Minus size={16} /></button>
+                                <span className="font-bold text-white w-full text-center font-mono text-2xl">{afkHours}h</span>
+                                <button onClick={() => handleAfkChange(1)} disabled={afkHours >= 5} className="w-10 h-10 flex items-center justify-center bg-emerald-950 rounded-lg hover:bg-emerald-900 text-emerald-400 border border-emerald-900 transition disabled:opacity-30"><Plus size={16} /></button>
                             </div>
-                            
-                            {/* INFO DISKON (Updated Prices) */}
-                            {(afkHours === 3 || afkHours === 5) && (
-                                <div className="mt-2 text-center animate-in fade-in slide-in-from-top-1">
-                                    <span className="inline-flex items-center gap-1 bg-red-500/20 text-red-300 text-[10px] px-2 py-0.5 rounded border border-red-500/50 font-bold shadow-[0_0_10px_rgba(239,68,68,0.3)]">
-                                        <Flame size={10} className="text-red-500 fill-red-500" />
-                                        {afkHours === 3 ? 'Hemat Rp 5.000!' : 'Super Hemat Rp 25.000!'}
+                            {currentSavings > 0 && (
+                                <div className="mt-3 text-center animate-in fade-in slide-in-from-top-1">
+                                    <span className="inline-flex items-center gap-1.5 bg-red-500/10 text-red-400 text-[10px] px-3 py-1 rounded-full border border-red-500/20 font-bold uppercase tracking-wide">
+                                        <Flame size={12} /> Hemat {formatRupiah(currentSavings)}
                                     </span>
                                 </div>
                             )}
                         </div>
 
-                        {/* 2. Jam Tambahan */}
                         {afkHours === 5 && (
-                            <div className="bg-emerald-900/20 p-3 rounded-lg border border-emerald-500/30 animate-in fade-in slide-in-from-top-2">
-                                <div className="flex justify-between items-center mb-1">
-                                    <span className="text-emerald-300 text-sm flex items-center gap-1">
-                                        <Plus size={12}/> Jam Ekstra
-                                    </span>
-                                    <span className="text-[10px] bg-emerald-900 text-emerald-400 px-1 rounded border border-emerald-500/50">+15K/jam</span>
+                            <div className="bg-emerald-500/5 p-4 rounded-xl border border-emerald-500/10 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-emerald-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1"><Plus size={12}/> Jam Ekstra</span>
+                                    <span className="text-[10px] text-emerald-500 font-mono">15K/jam</span>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <button onClick={() => setExtraHours(Math.max(0, extraHours - 1))} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded hover:bg-slate-700 text-white border border-slate-600"><Minus size={14} /></button>
-                                    <span className="font-bold text-white w-20 text-center">+{extraHours} Jam</span>
-                                    <button onClick={() => setExtraHours(extraHours + 1)} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded hover:bg-slate-700 text-white border border-slate-600"><Plus size={14} /></button>
+                                    <button onClick={() => setExtraHours(Math.max(0, extraHours - 1))} className="w-8 h-8 flex items-center justify-center bg-emerald-950 rounded hover:bg-emerald-900 text-emerald-400 border border-emerald-900 transition"><Minus size={14} /></button>
+                                    <span className="font-bold text-white w-full text-center font-mono">+{extraHours}h</span>
+                                    <button onClick={() => setExtraHours(extraHours + 1)} className="w-8 h-8 flex items-center justify-center bg-emerald-950 rounded hover:bg-emerald-900 text-emerald-400 border border-emerald-900 transition"><Plus size={14} /></button>
                                 </div>
                             </div>
                         )}
 
-                        {/* Total Harga */}
-                        <div className="flex justify-between items-end pt-2">
-                            <div>
-                                <p className="text-[10px] text-slate-500">
-                                    Total Durasi: <span className="text-slate-300 font-bold">{totalAfkDuration} Jam</span>
-                                </p>
-                                <p className="text-2xl font-bold text-emerald-400 font-mono">{formatRupiah(currentAfkPrice)}</p>
+                        <div className="pt-4 border-t border-emerald-900/30">
+                            <div className="flex justify-between items-end mb-4">
+                                <div>
+                                    <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider mb-1">Total Estimasi</p>
+                                    <p className="text-3xl font-bold text-emerald-300 font-mono">{formatRupiah(currentAfkPrice)}</p>
+                                </div>
                             </div>
-                            <button onClick={addAfkToCart} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-emerald-900/20 active:scale-95 transition">+ Keranjang</button>
-                        </div>
-                        <div className="text-[10px] text-slate-500 bg-slate-950/30 p-2 rounded border border-slate-800/50">
-                            💡 1 Jam 20K • 5 Jam 75K <br/>
-                            Lebih dari 5 jam cuma nambah 15K/jam.
+                            <button onClick={addAfkToCart} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-emerald-900/20 transition-all active:scale-95">Ambil Paket</button>
                         </div>
                     </div>
                 </div>
 
                 {/* LIST JOKI BIASA */}
-                <div className="p-6 bg-slate-800 border border-slate-700 rounded-2xl flex flex-col flex-grow shadow-lg">
-                    <h3 className="text-xl font-bold text-orange-400 mb-4 border-b border-slate-700 pb-2">Joki Services</h3>
-                    <div className="grid gap-3 content-start">
-                        {services.map((item: any) => (
+                <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-2xl">
+                    <h3 className="text-lg font-bold text-orange-400 mb-6 flex items-center gap-2 uppercase tracking-wide"><Hammer size={18} /> Joki Service</h3>
+                    <div className="grid gap-4 content-start">
+                        {displayedServices.map((item: any) => (
                             <ItemCard key={`s-${item.id}`} item={item} colorTheme="orange" type="service" />
                         ))}
                     </div>
                 </div>
             </div>
 
-            <div className="p-6 bg-slate-800 border border-slate-700 rounded-2xl flex flex-col h-full shadow-lg">
-               <h3 className="text-xl font-bold text-blue-400 mb-4 border-b border-slate-700 pb-2">Ore & Materials</h3>
-               <div className="grid gap-3 content-start">
+            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-2xl">
+               <h3 className="text-lg font-bold text-blue-400 mb-6 flex items-center gap-2 uppercase tracking-wide"><Gem size={18} /> Ore & Rune</h3>
+               <div className="grid gap-4 content-start">
                 {oreItems.map((item: any) => (
                    <ItemCard key={`g-${item.id}`} item={item} colorTheme="blue" type="ore" />
                 ))}
                </div>
             </div>
 
-            <div className="p-6 bg-slate-800 border border-slate-700 rounded-2xl flex flex-col h-full shadow-lg relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
-               <h3 className="text-xl font-bold text-purple-400 mb-4 border-b border-slate-700 pb-2 relative z-10">Gamepass (Via Gift)</h3>
-               <div className="grid gap-3 content-start relative z-10">
+            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-2xl">
+               <h3 className="text-lg font-bold text-purple-400 mb-6 flex items-center gap-2 uppercase tracking-wide"><Crown size={18} /> Gamepass</h3>
+               <div className="grid gap-4 content-start">
                 {gpItems.map((item: any) => (
                    <ItemCard key={`g-${item.id}`} item={item} colorTheme="purple" type="gamepass" />
                 ))}

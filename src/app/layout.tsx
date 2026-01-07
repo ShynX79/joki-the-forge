@@ -13,10 +13,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Update Metadata agar nama Tab Browser berubah
 export const metadata: Metadata = {
-  title: "LoremIpsum Store | Joki The Forge",
-  description: "Store joki The Forge terbaik, murah dan cepat.",
+  title: "LoremIpsum Store | The Forge Roblox",
+  description: "Jasa Joki dan Item The Forge Terpercaya, Cepat, dan Aman.",
 };
 
 export default function RootLayout({
@@ -25,10 +24,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // PERBAIKAN DISINI: Tambahkan "scroll-smooth"
     <html lang="en" className="scroll-smooth">
+      {/* UBAH: Background dasar jadi Slate-950 (sangat gelap dan bersih) */}
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950 text-slate-200`}
       >
         {children}
       </body>
