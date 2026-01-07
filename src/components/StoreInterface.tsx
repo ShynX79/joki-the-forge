@@ -31,12 +31,10 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
   const [afkHours, setAfkHours] = useState(1);
 
   // 2. Filter & Map Data
-  // Kita paksa ubah type menjadi 'ore' untuk item yang bukan Gamepass (GP)
   const oreItems = gamepasses
     .filter((i: any) => !i.name.startsWith('GP'))
     .map((i: any) => ({ ...i, type: 'ore' })); 
 
-  // Gamepass tetap pakai data asli
   const gpItems = gamepasses
     .filter((i: any) => i.name.startsWith('GP'))
     .map((i: any) => ({ ...i, type: 'gamepass' }));
@@ -51,13 +49,27 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
     return "Rp " + num.toLocaleString('id-ID');
   };
 
+  // --- LOGIC HITUNG HARGA AFK (UPDATE LOGIKA BARU) ---
   const calculateAfkPrice = (hours: number) => {
+    // 1 Jam = 25k
     if (hours === 1) return 25000;
-    if (hours === 2) return 50000;
-    if (hours === 3) return 55000;
-    if (hours === 4) return 65000;
+    
+    // 2-4 Jam (Interpolasi biar harganya naik bertahap menuju 75k)
+    if (hours === 2) return 50000; 
+    if (hours === 3) return 55000; // Masih keep harga 3 jam
+    if (hours === 4) return 65000; 
+
+    // Paket 5 Jam = 75k (Base Paket)
     if (hours === 5) return 75000;
-    if (hours > 5) return 75000 + ((hours - 5) * 12000);
+    
+    // Di atas 5 jam: Harga Paket (75k) + (Jam Tambahan * 15k)
+    // Contoh 6 jam: 75k + 15k = 90k
+    // Contoh 10 jam: 75k + (5 * 15k) = 150k
+    if (hours > 5) {
+      const extraHours = hours - 5;
+      return 75000 + (extraHours * 15000);
+    }
+    
     return 0;
   };
 
@@ -98,7 +110,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
 
   const addAfkToCart = () => {
     const afkItemObj: Item = {
-      id: 9000 + afkHours,
+      id: 9000 + afkHours, // ID unik berdasarkan jam
       type: 'afk',
       name: `Joki AFK (${afkHours} Jam)`,
       price: formatRupiah(currentAfkPrice),
@@ -142,8 +154,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
     setCart([]); 
   };
 
-  // --- CARD COMPONENT (FIXED PROP DEFINITION) ---
-  // Pastikan props: { item, colorTheme, type } didefinisikan dengan benar
+  // --- CARD COMPONENT ---
   const ItemCard = ({ item, colorTheme, type }: { item: Item, colorTheme: string, type: string }) => {
     const qty = getItemQty(item);
     const isMulti = isMultiQtyItem(item);
@@ -161,7 +172,6 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
         <div className="flex justify-between items-start mb-2" onClick={() => !isMulti && updateCart(item, qty > 0 ? -1 : 1)}>
             <div className="pr-6 cursor-pointer">
                 <h4 className="font-medium text-white text-sm">{item.name.replace('GP ', '')}</h4>
-                {/* Gunakan prop 'type' untuk conditional rendering */}
                 {type === 'service' && <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{item.category}</span>}
                 {type === 'ore' && <span className={`text-[10px] px-1.5 py-0.5 rounded border ${item.stock === 'Kosong' ? 'border-red-900 text-red-400' : 'border-blue-900 text-blue-400'}`}>{item.stock}</span>}
             </div>
@@ -322,7 +332,11 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
                             </div>
                             <button onClick={addAfkToCart} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-emerald-900/20 active:scale-95 transition">+ Keranjang</button>
                         </div>
-                        <div className="text-[10px] text-slate-500 bg-slate-950/30 p-2 rounded border border-slate-800/50">💡 1 Jam 25K • 3 Jam 55K • 5 Jam 75K <br/>(Lebih dari 5 jam makin hemat!)</div>
+                        {/* UPDATE TEKS DISKON */}
+                        <div className="text-[10px] text-slate-500 bg-slate-950/30 p-2 rounded border border-slate-800/50">
+                            💡 1 Jam 25K • 5 Jam 75K (Hemat!) <br/>
+                            Lebih dari 5 jam cuma nambah 15K/jam.
+                        </div>
                     </div>
                 </div>
 
