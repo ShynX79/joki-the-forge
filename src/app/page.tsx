@@ -86,7 +86,7 @@ export default async function Home() {
               <Scroll className="ml-2 -mr-1 w-5 h-5" />
             </a>
 
-            {/* Link ke Akun TikTok Baru */}
+            {/* Link Testimoni TETAP ke Akun Toko */}
             <a href="https://www.tiktok.com/@loremipsumestore" target="_blank" className="inline-flex justify-center items-center py-3 px-8 text-base font-bold text-slate-300 bg-slate-900/50 border border-slate-700 hover:bg-slate-800 hover:text-white rounded-lg transition-all">
                Cek Testimoni
             </a>
@@ -124,12 +124,12 @@ export default async function Home() {
             <ul className="space-y-2 text-slate-400">
               <li className="flex items-center gap-2">
                 <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                {/* Link ke Akun TikTok Baru */}
-                <a href="https://www.tiktok.com/@loremipsumestore" target="_blank" className="hover:text-white transition">@loremipsumestore</a>
+                {/* UPDATE: Link ke Admin ItsmeShynX */}
+                <a href="https://www.tiktok.com/@imnotok_793" target="_blank" className="hover:text-white transition">Admin (ItsmeShynX)</a>
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                <span>YouTube: XynN</span>
+                <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                <a href="https://www.tiktok.com/@loremipsumestore" target="_blank" className="hover:text-white transition">Testimoni (LRP Store)</a>
               </li>
             </ul>
           </div>

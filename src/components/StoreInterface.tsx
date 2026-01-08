@@ -134,7 +134,8 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
   const totalItems = cart.reduce((acc, c) => acc + c.quantity, 0);
 
   const handleCheckout = () => {
-    let message = "🎮 *ORDERAN BARU* 🎮\n\nHalo Admin LRP, saya mau order:\n\n";
+    // UPDATE: Pesan menyapa Admin ItsmeShynX
+    let message = "🎮 *ORDERAN BARU* 🎮\n\nHalo Admin ItsmeShynX, saya mau order:\n\n";
     cart.forEach((c, index) => {
       const cleanName = c.item.name.replace('GP ', ''); 
       let typeLabel = '';
@@ -160,12 +161,13 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
   };
 
   const openTikTok = () => {
-    // UPDATE LINK KE AKUN BARU
-    window.open("https://www.tiktok.com/@loremipsumestore", "_blank");
+    // UPDATE: Redirect ke Admin (ItsmeShynX)
+    window.open("https://www.tiktok.com/@imnotok_793", "_blank");
     setIsSuccessOpen(false);
     setCart([]); 
   };
 
+  // --- CARD COMPONENT ---
   const ItemCard = ({ item, colorTheme, type }: { item: Item, colorTheme: string, type: string }) => {
     const qty = getItemQty(item);
     const isMulti = isMultiQtyItem(item);
@@ -305,7 +307,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2">Orderan Disalin!</h3>
                 <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-                    Text orderan sudah di-copy. Silakan kirim ke Admin melalui DM TikTok.
+                    Text orderan sudah di-copy. Silakan kirim ke Admin (ItsmeShynX) melalui DM TikTok.
                 </p>
                 
                 <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 mb-6 text-xs text-slate-400 flex items-center justify-between gap-1">
@@ -319,7 +321,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
                 <div className="space-y-3">
                     <button onClick={openTikTok} className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95">
                         <MessageCircle size={20} />
-                        <span>Buka DM TikTok</span>
+                        <span>Buka Profil Admin</span>
                     </button>
                     <button onClick={() => setIsSuccessOpen(false)} className="text-slate-500 text-sm hover:text-white transition font-medium">Tutup</button>
                 </div>
