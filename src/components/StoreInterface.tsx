@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { ShoppingCart, X, Copy, Minus, Plus, MessageCircle, Flame, Hammer, Gem, Crown, Clock, CheckCircle2, PackageCheck } from 'lucide-react';
+import { ShoppingCart, X, Copy, Minus, Plus, MessageCircle, Flame, Hammer, Gem, Crown, Clock, CheckCircle2, PackageCheck, ArrowRight } from 'lucide-react';
 
 interface Item {
   id: number;
@@ -160,11 +160,13 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
   };
 
   const openTikTok = () => {
+    // Link ke Profil (TikTok tidak support deep link direct DM)
     window.open("https://www.tiktok.com/@imnotok_793", "_blank");
     setIsSuccessOpen(false);
     setCart([]); 
   };
 
+  // --- CARD COMPONENT ---
   const ItemCard = ({ item, colorTheme, type }: { item: Item, colorTheme: string, type: string }) => {
     const qty = getItemQty(item);
     const isMulti = isMultiQtyItem(item);
@@ -224,7 +226,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
         <div className="mt-auto flex items-center justify-between">
           <span className={`font-mono font-bold text-sm ${priceClass}`}>{item.price}</span>
           {isMulti ? (
-             <div className={`flex items-center gap-1 rounded-lg p-1 border transition-colors ${qty > 0 ? 'bg-slate-900 border-slate-700' : 'bg-slate-900 border-slate-800'}`}>
+             <div className={`flex items-center gap-1 rounded-lg p-1 border transition-colors ${qty > 0 ? 'bg-slate-900 border-slate-700' : 'bg-slate-950 border-slate-800'}`}>
                 <button onClick={(e) => { e.stopPropagation(); updateCart(item, -1); }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition"><Minus size={14} /></button>
                 <span className={`text-xs font-mono font-bold w-6 text-center ${qty > 0 ? 'text-white' : 'text-slate-600'}`}>{qty}</span>
                 <button onClick={(e) => { e.stopPropagation(); updateCart(item, 1); }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 transition"><Plus size={14} /></button>
@@ -295,7 +297,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
         </div>
       )}
 
-      {/* 3. MODAL SUKSES */}
+      {/* 3. MODAL SUKSES (UPDATED INSTRUCTION) */}
       {isSuccessOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
              <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden text-center p-8 relative ring-1 ring-blue-500/20 animate-pop-in">
@@ -303,12 +305,24 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
                     <PackageCheck size={32} className="text-blue-500" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2">Orderan Disalin!</h3>
-                <p className="text-slate-400 text-sm mb-8 leading-relaxed">
-                    Teks orderan sudah ada di clipboard.<br/> 
-                    Silakan <b>Paste (Tempel)</b> di DM Admin TikTok.
+                <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+                    Text orderan sudah di-copy. Silakan kirim ke Admin TikTok melalui DM.
                 </p>
+                
+                {/* Visual Step Guide */}
+                <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 mb-6 text-xs text-slate-400 flex items-center justify-between gap-1">
+                    <span className="bg-slate-800 px-2 py-1 rounded">Buka Profil</span>
+                    <ArrowRight size={12} />
+                    <span className="bg-slate-800 px-2 py-1 rounded">Klik "Pesan"</span>
+                    <ArrowRight size={12} />
+                    <span className="bg-blue-900/30 text-blue-300 border border-blue-500/30 px-2 py-1 rounded font-bold">Paste</span>
+                </div>
+
                 <div className="space-y-3">
-                    <button onClick={openTikTok} className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"><MessageCircle size={20} /><span>Buka TikTok</span></button>
+                    <button onClick={openTikTok} className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95">
+                        <MessageCircle size={20} />
+                        <span>Buka Profil TikTok</span>
+                    </button>
                     <button onClick={() => setIsSuccessOpen(false)} className="text-slate-500 text-sm hover:text-white transition font-medium">Tutup</button>
                 </div>
              </div>

@@ -90,7 +90,7 @@ export default async function Home() {
             <p className="text-slate-400">
               ⭐ Testimoni: <span className="text-emerald-400 font-medium">LoremIpsum Guild</span>
             </p>
-             <p className="text-slate-600 text-xs mt-4 md:mt-2">© 2024 LoremIpsum Store. All rights reserved.</p>
+             <p className="text-slate-600 text-xs mt-4 md:mt-2">© 2026 LoremIpsum Store. All rights reserved.</p>
           </div>
         </div>
       </footer>
