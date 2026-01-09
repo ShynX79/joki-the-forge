@@ -10,14 +10,18 @@ async function getData() {
   const { data: servicesData } = await supabase.from('services').select('*').order('id');
   const { data: gamepassesData } = await supabase.from('gamepasses').select('*').order('id');
   
+  // AMBIL STATUS ADMIN
+  const { data: statusData } = await supabase.from('admin_status').select('is_online').eq('id', 1).single();
+  
   const services = servicesData?.map(item => ({ ...item, type: 'service' })) || [];
   const gamepasses = gamepassesData?.map(item => ({ ...item, type: 'gamepass' })) || [];
+  const isOnline = statusData ? statusData.is_online : false;
 
-  return { services, gamepasses };
+  return { services, gamepasses, isOnline };
 }
 
 export default async function Home() {
-  const { services, gamepasses } = await getData();
+  const { services, gamepasses, isOnline } = await getData();
 
   return (
     <main className="min-h-screen bg-slate-950 selection:bg-blue-900/50 selection:text-blue-100 font-sans">
@@ -43,15 +47,26 @@ export default async function Home() {
              <Link href="#testimoni" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">Testimoni</Link>
           </div>
           
-          {/* 3. KANAN: STATUS INDIKATOR */}
+          {/* 3. KANAN: STATUS INDIKATOR (DINAMIS DARI DATABASE) */}
           <div className="flex items-center gap-3">
-             <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/30 border border-emerald-500/20">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="text-xs font-medium text-emerald-400">Admin Online</span>
-             </div>
+             {isOnline ? (
+                 // TAMPILAN JIKA ONLINE (Hijau & Berkedip)
+                 <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/30 border border-emerald-500/20">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-xs font-medium text-emerald-400">Admin Online</span>
+                 </div>
+             ) : (
+                 // TAMPILAN JIKA OFFLINE (Merah & Diam)
+                 <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-red-950/30 border border-red-500/20 grayscale opacity-80">
+                    <span className="relative flex h-2 w-2">
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                    <span className="text-xs font-medium text-red-400">Admin Offline</span>
+                 </div>
+             )}
           </div>
 
         </div>
@@ -86,7 +101,6 @@ export default async function Home() {
               <Scroll className="ml-2 -mr-1 w-5 h-5" />
             </a>
 
-            {/* Link Testimoni TETAP ke Akun Toko */}
             <a href="https://www.tiktok.com/@loremipsumestore" target="_blank" className="inline-flex justify-center items-center py-3 px-8 text-base font-bold text-slate-300 bg-slate-900/50 border border-slate-700 hover:bg-slate-800 hover:text-white rounded-lg transition-all">
                Cek Testimoni
             </a>
@@ -124,7 +138,6 @@ export default async function Home() {
             <ul className="space-y-2 text-slate-400">
               <li className="flex items-center gap-2">
                 <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                {/* UPDATE: Link ke Admin ItsmeShynX */}
                 <a href="https://www.tiktok.com/@imnotok_793" target="_blank" className="hover:text-white transition">Admin (ItsmeShynX)</a>
               </li>
               <li className="flex items-center gap-2">

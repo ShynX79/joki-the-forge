@@ -10,7 +10,7 @@ interface Item {
   name: string;
   price: string;
   category?: string;
-  stock?: string;
+  stock?: string; 
 }
 
 interface CartItem {
@@ -134,7 +134,6 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
   const totalItems = cart.reduce((acc, c) => acc + c.quantity, 0);
 
   const handleCheckout = () => {
-    // UPDATE: Pesan menyapa Admin ItsmeShynX
     let message = "🎮 *ORDERAN BARU* 🎮\n\nHalo Admin ItsmeShynX, saya mau order:\n\n";
     cart.forEach((c, index) => {
       const cleanName = c.item.name.replace('GP ', ''); 
@@ -161,7 +160,6 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
   };
 
   const openTikTok = () => {
-    // UPDATE: Redirect ke Admin (ItsmeShynX)
     window.open("https://www.tiktok.com/@imnotok_793", "_blank");
     setIsSuccessOpen(false);
     setCart([]); 
@@ -172,38 +170,54 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
     const qty = getItemQty(item);
     const isMulti = isMultiQtyItem(item);
     
+    // --- STYLE DASAR ---
     let cardClass = "bg-slate-900 border border-slate-800 hover:border-slate-600"; 
     let titleClass = "text-slate-200";
     let priceClass = "text-slate-300";
     let categoryClass = "text-slate-500 bg-slate-800";
-    let btnClass = "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white";
+    let btnClass = "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white";
+    let badgeClass = "bg-slate-800 text-slate-400 border border-slate-700";
 
-    if (colorTheme === 'orange') { 
+    // --- STYLE TEMA ---
+    if (colorTheme === 'orange') { // JOKI
         titleClass = "text-orange-100 group-hover:text-orange-400";
         priceClass = "text-orange-400";
         categoryClass = "text-orange-300 bg-orange-900/30 border border-orange-500/20";
+        btnClass = "bg-orange-950/30 text-orange-200 border border-orange-500/30 hover:bg-orange-600 hover:text-white hover:border-orange-500";
         if (qty > 0) {
             cardClass = "bg-orange-950/20 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.1)]";
-            btnClass = "bg-orange-600 text-white hover:bg-orange-500 shadow-lg shadow-orange-900/20";
+            btnClass = "bg-orange-600 text-white hover:bg-orange-500 shadow-lg shadow-orange-900/20 border-transparent";
         }
     }
-    if (colorTheme === 'blue') { 
+    if (colorTheme === 'blue') { // ORE
         titleClass = "text-blue-100 group-hover:text-cyan-300";
         priceClass = "text-cyan-400";
-        categoryClass = "text-blue-300 bg-blue-900/30 border border-blue-500/20";
+        badgeClass = "bg-blue-950/40 text-blue-300 border border-blue-500/30";
+        btnClass = "bg-blue-950/30 text-blue-200 border border-blue-500/30 hover:bg-blue-600 hover:text-white hover:border-blue-500";
         if (qty > 0) {
             cardClass = "bg-blue-950/20 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]";
-            btnClass = "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20";
+            btnClass = "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20 border-transparent";
         }
     }
-    if (colorTheme === 'purple') { 
+    if (colorTheme === 'purple') { // GAMEPASS
         titleClass = "text-purple-100 group-hover:text-fuchsia-300";
-        priceClass = "text-yellow-400";
-        categoryClass = "text-purple-300 bg-purple-900/30 border border-purple-500/20";
+        priceClass = "text-yellow-400"; 
+        badgeClass = "bg-purple-950/40 text-purple-300 border border-purple-500/30"; 
+        btnClass = "bg-purple-950/30 text-purple-200 border border-purple-500/30 hover:bg-purple-600 hover:text-white hover:border-purple-500";
         if (qty > 0) {
             cardClass = "bg-purple-950/20 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.1)]";
-            btnClass = "bg-purple-600 text-white hover:bg-purple-500 shadow-lg shadow-purple-900/20";
+            btnClass = "bg-purple-600 text-white hover:bg-purple-500 shadow-lg shadow-purple-900/20 border-transparent";
         }
+    }
+
+    // --- LOGIKA STOK FORCE READY ---
+    // Kalau 'Kosong' tetap Kosong.
+    // Selain itu (termasuk 'Via Gift', null, dll) jadikan 'Ready'.
+    const displayStock = item.stock === 'Kosong' ? 'Kosong' : 'Ready';
+
+    // Overwrite badge class jika stok kosong
+    if (displayStock === 'Kosong') {
+        badgeClass = "bg-red-950/50 text-red-400 border border-red-900";
     }
 
     return (
@@ -213,19 +227,27 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
                 <h4 className={`font-bold text-sm tracking-tight transition-colors ${titleClass}`}>
                     {item.name.replace('GP ', '')}
                 </h4>
+                
                 <div className="flex gap-2 mt-1.5">
                     {type === 'service' && <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold tracking-wider ${categoryClass}`}>{item.category}</span>}
-                    {type === 'ore' && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${item.stock === 'Kosong' ? 'bg-red-950/50 text-red-400 border border-red-900' : 'bg-emerald-950/40 text-emerald-400 border border-emerald-900'}`}>{item.stock || 'Ready'}</span>}
+                    
+                    {(type === 'ore' || type === 'gamepass') && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${badgeClass}`}>
+                            {displayStock}
+                        </span>
+                    )}
                 </div>
             </div>
+
             {!isMulti && (
                 <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${qty > 0 ? `bg-${colorTheme}-500 border-${colorTheme}-500` : 'border-slate-700 bg-slate-800'}`}>
                     {qty > 0 && <CheckCircle2 size={12} className="text-white" />}
                 </div>
             )}
         </div>
-        <div className="mt-auto flex items-center justify-between">
+        <div className="mt-auto flex items-center justify-between pt-2">
           <span className={`font-mono font-bold text-sm ${priceClass}`}>{item.price}</span>
+          
           {isMulti ? (
              <div className={`flex items-center gap-1 rounded-lg p-1 border transition-colors ${qty > 0 ? 'bg-slate-900 border-slate-700' : 'bg-slate-900 border-slate-800'}`}>
                 <button onClick={(e) => { e.stopPropagation(); updateCart(item, -1); }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition"><Minus size={14} /></button>
@@ -233,8 +255,12 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
                 <button onClick={(e) => { e.stopPropagation(); updateCart(item, 1); }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 transition"><Plus size={14} /></button>
              </div>
           ) : (
-             <button onClick={() => updateCart(item, qty > 0 ? -1 : 1)} className={`text-xs px-4 py-2 rounded-lg font-bold transition-all shadow-md ${btnClass}`}>
-                {qty > 0 ? 'Batal' : 'Ambil'}
+             <button 
+                onClick={() => updateCart(item, qty > 0 ? -1 : 1)} 
+                disabled={displayStock === 'Kosong' && qty === 0}
+                className={`text-xs px-4 py-2 rounded-lg font-bold transition-all shadow-md ${btnClass} ${displayStock === 'Kosong' && qty === 0 ? '!bg-slate-800 !text-slate-600 !border-slate-800 cursor-not-allowed' : ''}`}
+             >
+                {displayStock === 'Kosong' && qty === 0 ? 'Habis' : (qty > 0 ? 'Batal' : 'Ambil')}
              </button>
           )}
         </div>
@@ -298,7 +324,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
         </div>
       )}
 
-      {/* 3. MODAL SUKSES (UPDATED) */}
+      {/* 3. MODAL SUKSES */}
       {isSuccessOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
              <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden text-center p-8 relative ring-1 ring-blue-500/20 animate-pop-in">
