@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { ShoppingCart, X, Copy, Minus, Plus, MessageCircle, Flame, Hammer, Gem, Crown, Clock, CheckCircle2, PackageCheck, ArrowRight } from 'lucide-react';
+import { ShoppingCart, X, Copy, Minus, Plus, MessageCircle, Flame, Hammer, Gem, Crown, Clock, CheckCircle2, PackageCheck, ArrowRight, AlertTriangle } from 'lucide-react';
 
 interface Item {
   id: number;
@@ -21,12 +21,17 @@ interface CartItem {
 interface StoreInterfaceProps {
   services: any[];
   gamepasses: any[];
+  isOnline: boolean; 
 }
 
-export default function StoreInterface({ services, gamepasses }: StoreInterfaceProps) {
+export default function StoreInterface({ services, gamepasses, isOnline }: StoreInterfaceProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  
+  // STATE BARU: Untuk Modal Peringatan Admin Offline
+  const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
+
   const [afkHours, setAfkHours] = useState(1); 
   const [extraHours, setExtraHours] = useState(0);
 
@@ -133,7 +138,18 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
   const totalPrice = cart.reduce((acc, c) => acc + (parsePrice(c.item.price) * c.quantity), 0);
   const totalItems = cart.reduce((acc, c) => acc + c.quantity, 0);
 
-  const handleCheckout = () => {
+  // --- TRIGGER CHECKOUT ---
+  const handleCheckoutClick = () => {
+    if (!isOnline) {
+        // Jika offline, buka modal peringatan DULU
+        setIsOfflineModalOpen(true);
+    } else {
+        // Jika online, langsung proses
+        processCopyOrder();
+    }
+  };
+
+  const processCopyOrder = () => {
     let message = "🎮 *ORDERAN BARU* 🎮\n\nHalo Admin ItsmeShynX, saya mau order:\n\n";
     cart.forEach((c, index) => {
       const cleanName = c.item.name.replace('GP ', ''); 
@@ -152,8 +168,9 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
     message += `\n\nMohon diproses min!`;
 
     navigator.clipboard.writeText(message).then(() => {
-      setIsModalOpen(false);
-      setIsSuccessOpen(true);
+      setIsModalOpen(false); // Tutup Keranjang
+      setIsOfflineModalOpen(false); // Tutup Modal Offline (jika ada)
+      setIsSuccessOpen(true); // Buka Modal Sukses
     }).catch(() => {
         alert("Gagal menyalin text.");
     });
@@ -170,7 +187,6 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
     const qty = getItemQty(item);
     const isMulti = isMultiQtyItem(item);
     
-    // --- STYLE DASAR ---
     let cardClass = "bg-slate-900 border border-slate-800 hover:border-slate-600"; 
     let titleClass = "text-slate-200";
     let priceClass = "text-slate-300";
@@ -178,8 +194,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
     let btnClass = "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white";
     let badgeClass = "bg-slate-800 text-slate-400 border border-slate-700";
 
-    // --- STYLE TEMA ---
-    if (colorTheme === 'orange') { // JOKI
+    if (colorTheme === 'orange') { 
         titleClass = "text-orange-100 group-hover:text-orange-400";
         priceClass = "text-orange-400";
         categoryClass = "text-orange-300 bg-orange-900/30 border border-orange-500/20";
@@ -189,7 +204,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
             btnClass = "bg-orange-600 text-white hover:bg-orange-500 shadow-lg shadow-orange-900/20 border-transparent";
         }
     }
-    if (colorTheme === 'blue') { // ORE
+    if (colorTheme === 'blue') { 
         titleClass = "text-blue-100 group-hover:text-cyan-300";
         priceClass = "text-cyan-400";
         badgeClass = "bg-blue-950/40 text-blue-300 border border-blue-500/30";
@@ -199,7 +214,7 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
             btnClass = "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20 border-transparent";
         }
     }
-    if (colorTheme === 'purple') { // GAMEPASS
+    if (colorTheme === 'purple') { 
         titleClass = "text-purple-100 group-hover:text-fuchsia-300";
         priceClass = "text-yellow-400"; 
         badgeClass = "bg-purple-950/40 text-purple-300 border border-purple-500/30"; 
@@ -210,12 +225,8 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
         }
     }
 
-    // --- LOGIKA STOK FORCE READY ---
-    // Kalau 'Kosong' tetap Kosong.
-    // Selain itu (termasuk 'Via Gift', null, dll) jadikan 'Ready'.
     const displayStock = item.stock === 'Kosong' ? 'Kosong' : 'Ready';
 
-    // Overwrite badge class jika stok kosong
     if (displayStock === 'Kosong') {
         badgeClass = "bg-red-950/50 text-red-400 border border-red-900";
     }
@@ -318,13 +329,38 @@ export default function StoreInterface({ services, gamepasses }: StoreInterfaceP
                 </div>
                 <div className="p-5 bg-slate-900 border-t border-slate-800 space-y-4">
                     <div className="flex justify-between items-center text-lg font-bold"><span className="text-slate-400 text-sm font-medium uppercase">Total Bayar</span><span className="text-blue-400 text-xl font-mono">{formatRupiah(totalPrice)}</span></div>
-                    <button onClick={handleCheckout} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"><Copy size={18} /><span>Salin Orderan</span></button>
+                    {/* KLIK DISINI -> TRIGGER FUNGSI BARU */}
+                    <button onClick={handleCheckoutClick} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"><Copy size={18} /><span>Salin Orderan</span></button>
                 </div>
             </div>
         </div>
       )}
 
-      {/* 3. MODAL SUKSES */}
+      {/* 3. MODAL PERINGATAN (ADMIN OFFLINE) */}
+      {isOfflineModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+             <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-red-500/30 shadow-[0_0_50px_rgba(220,38,38,0.2)] text-center p-8 relative ring-1 ring-red-500/20 animate-pop-in">
+                <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 ring-1 ring-red-500/30">
+                    <AlertTriangle size={32} className="text-red-500" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-2">Admin Offline</h3>
+                <p className="text-slate-400 text-sm mb-8 leading-relaxed">
+                    Saat ini Admin sedang istirahat / diluar jam kerja. Respon chat mungkin akan <span className="text-red-400 font-bold">lebih lambat</span>.
+                    <br/><br/>
+                    Apakah Anda ingin tetap melanjutkan?
+                </p>
+                <div className="space-y-3">
+                    <button onClick={processCopyOrder} className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95">
+                        <span>Ya, Lanjutkan</span>
+                        <ArrowRight size={18} />
+                    </button>
+                    <button onClick={() => setIsOfflineModalOpen(false)} className="text-slate-500 text-sm hover:text-white transition font-medium">Batal</button>
+                </div>
+             </div>
+        </div>
+      )}
+
+      {/* 4. MODAL SUKSES */}
       {isSuccessOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
              <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden text-center p-8 relative ring-1 ring-blue-500/20 animate-pop-in">
